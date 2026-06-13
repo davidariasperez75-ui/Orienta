@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seguimiento semanal · Orienta</title>
+<style>
+:root{
+  --azul:#1c4587;
+  --verde:#2e7d32;
+  --amarillo:#f9a825;
+  --rojo:#c62828;
+  --bg:#f7f7f9;
+  --card:#ffffff;
+  --border:#ddd;
+  --text:#222;
+  --muted:#666;
+}
+*{box-sizing:border-box;}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:0 0 40px;}
+header{background:var(--azul);color:#fff;padding:16px 20px;}
+header h1{margin:0;font-size:1.3rem;}
+header p{margin:4px 0 0;font-size:.85rem;opacity:.85;}
+main{max-width:840px;margin:0 auto;padding:16px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;}
+.card h2{margin:0 0 12px;font-size:1.05rem;color:var(--azul);}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;}
+label{font-size:.9rem;color:var(--muted);}
+input,select,textarea,button{font:inherit;}
+input[type=text],input[type=number],input[type=date],select,textarea{border:1px solid var(--border);border-radius:6px;padding:6px 8px;width:100%;}
+textarea{resize:vertical;min-height:50px;}
+button{background:var(--azul);color:#fff;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;font-size:.9rem;}
+button.secondary{background:#fff;color:var(--azul);border:1px solid var(--azul);}
+button.danger{background:#fff;color:var(--rojo);border:1px solid var(--rojo);}
+button:hover{opacity:.85;}
+.ambito-block{border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px;}
+.ambito-block h3{margin:0 0 8px;font-size:.95rem;}
+.item-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:4px;cursor:pointer;}
+.item-row input[type=checkbox]{margin-top:4px;}
+.item-row span{flex:1;font-size:.92rem;}
+table{width:100%;border-collapse:collapse;font-size:.9rem;}
+th,td{border-bottom:1px solid var(--border);padding:6px 8px;text-align:left;}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;color:#fff;font-size:.8rem;}
+.badge.alta{background:var(--verde);}
+.badge.media{background:var(--amarillo);color:#333;}
+.badge.baja{background:var(--rojo);}
+canvas{max-width:100%;border:1px solid var(--border);border-radius:8px;background:#fff;}
+#mensaje{min-height:280px;font-family:ui-monospace,Consolas,monospace;font-size:.85rem;}
+details summary{cursor:pointer;font-weight:600;color:var(--azul);}
+.muted{color:var(--muted);font-size:.85rem;}
+.actions{display:flex;gap:8px;flex-wrap:wrap;}
+@media (max-width:480px){
+  .row{flex-direction:column;align-items:stretch;}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Seguimiento semanal</h1>
+  <p>Registra la semana y obtén al instante un resumen visual y un mensaje listo para enviar a la familia</p>
+</header>
+<main>
+
+  <div class="card">
+    <div class="row">
+      <label for="case-select">Caso</label>
+      <select id="case-select" onchange="onSelectCase(this.value)" style="flex:1;min-width:140px"></select>
+      <button class="secondary" onclick="nuevoCaso()">Nuevo</button>
+      <button class="secondary" onclick="renombrarCaso()">Renombrar</button>
+      <button class="danger" onclick="eliminarCaso()">Eliminar</button>
+    </div>
+    <div class="row">
+      <button class="secondary" onclick="exportarJSON()">Exportar copia (JSON)</button>
+      <button class="secondary" onclick="document.getElementById('import-file').click()">Importar copia (JSON)</button>
+      <input type="file" id="import-file" accept="application/json" style="display:none" onchange="importarJSON(event)">
+    </div>
+    <p class="muted">Los datos se guardan solo en este navegador/dispositivo (no se suben a ningún sitio).
+    Usa un alias para cada caso (no es necesario el nombre real) y exporta una copia de vez en cuando para no perder el historial.</p>
+  </div>
+
+  <details class="card" id="config-section">
+    <summary>Configuración del caso (ámbitos, indicadores y objetivo)</summary>
+    <div class="row" style="margin-top:12px">
+      <label for="objetivo">Objetivo mínimo de cumplimiento (%)</label>
+      <input type="number" id="objetivo" min="0" max="100" style="max-width:100px" onchange="onObjetivoChange(this.value)">
+    </div>
+    <div id="ambitos-config"></div>
+    <button class="secondary" onclick="anadirAmbito()">+ Añadir ámbito</button>
+    <p class="muted" style="margin-top:8px">Cada ámbito tiene una lista de indicadores observables (uno por línea).
+    Cada semana se marca si se cumplió o no cada indicador.</p>
+  </details>
+
+  <div class="card">
+    <h2>Registro de la semana</h2>
+    <div class="row">
+      <label for="semana-numero">Semana nº</label>
+      <input type="number" id="semana-numero" min="1" style="max-width:90px">
+      <label for="semana-fecha">Fecha</label>
+      <input type="date" id="semana-fecha" style="max-width:160px">
+    </div>
+    <div id="ambitos-registro"></div>
+    <label for="obs-general">Observaciones generales de la semana</label>
+    <textarea id="obs-general"></textarea>
+    <div class="actions" style="margin-top:12px">
+      <button onclick="generarResumen()">Generar resumen semanal</button>
+      <button class="secondary" onclick="nuevaSemana()">Nueva semana en blanco</button>
+    </div>
+  </div>
+
+  <div class="card" id="resumen-section" style="display:none">
+    <h2>Resumen visual</h2>
+    <canvas id="chart-ambitos" width="760" height="320"></canvas>
+    <div class="actions" style="margin:8px 0 16px">
+      <button class="secondary" onclick="descargarImagen('chart-ambitos','resumen-ambitos.png')">Descargar imagen</button>
+    </div>
+    <canvas id="chart-evolucion" width="760" height="260"></canvas>
+    <div class="actions" style="margin-top:8px">
+      <button class="secondary" onclick="descargarImagen('chart-evolucion','evolucion.png')">Descargar imagen</button>
+    </div>
+
+    <h2 style="margin-top:20px">Mensaje para la familia</h2>
+    <textarea id="mensaje"></textarea>
+    <div class="actions" style="margin-top:8px">
+      <button onclick="copiarMensaje()">Copiar mensaje</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Histórico de semanas</h2>
+    <div id="historico-table"></div>
+    <div class="actions" style="margin-top:8px">
+      <button class="secondary" onclick="exportarCSV()">Exportar histórico (CSV)</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const STORAGE_KEY = 'orienta-seguimiento-semanal-v1';
+let state = loadState();
+
+function genId(){ return 'id_' + Math.random().toString(36).slice(2,9); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+}
+function escapeAttr(s){
+  return escapeHtml(s).replace(/"/g, '&quot;');
+}
+function truncate(s, n){
+  return s.length > n ? s.slice(0, n - 1) + '…' : s;
+}
+
+/* ---------- estado y persistencia ---------- */
+
+function defaultAmbitos(){
+  return [
+    {id:genId(), nombre:'Académico', items:[
+      'Entregó las tareas priorizadas de la semana.',
+      'Trajo el material necesario a clase.',
+      'Participó activamente en al menos una asignatura.'
+    ]},
+    {id:genId(), nombre:'Organización y estudio', items:[
+      'Usó la agenda/checklist a diario.',
+      'Estudió en bloques con descansos.',
+      'Cumplió el horario de estudio acordado.'
+    ]},
+    {id:genId(), nombre:'Actitud y comportamiento', items:[
+      'Siguió las instrucciones a la primera.',
+      'Pidió ayuda cuando lo necesitó.',
+      'Mantuvo una actitud positiva en clase.'
+    ]},
+    {id:genId(), nombre:'Familia', items:[
+      'Supervisó el estudio al menos 3 días.',
+      'Revisó la agenda/checklist con el alumno/a.',
+      'Comunicó cualquier incidencia al centro.'
+    ]},
+    {id:genId(), nombre:'Acompañamiento', items:[
+      'Asistió a la sesión de acompañamiento.',
+      'Cumplió los compromisos acordados.',
+      'Propuso alguna mejora por iniciativa propia.'
+    ]}
+  ];
+}
+
+function defaultState(){
+  const id = genId();
+  return {
+    activeCaseId: id,
+    cases: {
+      [id]: { name: 'Caso ejemplo', objetivo: 60, ambitos: defaultAmbitos(), weeks: [] }
+    }
+  };
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return defaultState();
+}
+
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function activeCase(){
+  return state.cases[state.activeCaseId];
+}
+
+/* ---------- cálculos ---------- */
+
+function pctAmbito(amb){
+  if(!amb.items.length) return null;
+  const cumplidos = amb.items.filter(i => i.cumplido).length;
+  return cumplidos / amb.items.length * 100;
+}
+
+function pctGlobal(week){
+  let cumplidos = 0, evaluados = 0;
+  week.ambitos.forEach(a => {
+    cumplidos += a.items.filter(i => i.cumplido).length;
+    evaluados += a.items.length;
+  });
+  return evaluados ? cumplidos / evaluados * 100 : 0;
+}
+
+function nivel(pct, objetivo){
+  if(pct >= 80) return 'Alta';
+  if(pct >= objetivo) return 'Media';
+  return 'Baja';
+}
+
+function colorNivel(pct, objetivo){
+  if(pct >= 80) return getComputedStyle(document.documentElement).getPropertyValue('--verde').trim() || '#2e7d32';
+  if(pct >= objetivo) return getComputedStyle(document.documentElement).getPropertyValue('--amarillo').trim() || '#f9a825';
+  return getComputedStyle(document.documentElement).getPropertyValue('--rojo').trim() || '#c62828';
+}
+
+/* ---------- gestión de casos ---------- */
+
+function renderCaseSelector(){
+  const sel = document.getElementById('case-select');
+  sel.innerHTML = '';
+  Object.entries(state.cases).forEach(([id, c]) => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = c.name;
+    if(id === state.activeCaseId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function onSelectCase(id){
+  state.activeCaseId = id;
+  saveState();
+  renderAll();
+}
+
+function nuevoCaso(){
+  const nombre = prompt('Nombre o alias del nuevo caso (no hace falta el nombre real, ej. "Alumno 3ºB - 1")', 'Nuevo caso');
+  if(!nombre) return;
+  const id = genId();
+  state.cases[id] = { name: nombre, objetivo: 60, ambitos: defaultAmbitos(), weeks: [] };
+  state.activeCaseId = id;
+  saveState();
+  renderAll();
+}
+
+function renombrarCaso(){
+  const c = activeCase();
+  const nombre = prompt('Nuevo nombre/alias del caso', c.name);
+  if(!nombre) return;
+  c.name = nombre;
+  saveState();
+  renderCaseSelector();
+}
+
+function eliminarCaso(){
+  if(Object.keys(state.cases).length <= 1){
+    alert('Debe quedar al menos un caso.');
+    return;
+  }
+  if(!confirm('¿Eliminar este caso y todo su historial? Esta acción no se puede deshacer.')) return;
+  delete state.cases[state.activeCaseId];
+  state.activeCaseId = Object.keys(state.cases)[0];
+  saveState();
+  renderAll();
+}
+
+/* ---------- configuración de ámbitos ---------- */
+
+function renderConfig(){
+  const c = activeCase();
+  document.getElementById('objetivo').value = c.objetivo;
+  const cont = document.getElementById('ambitos-config');
+  cont.innerHTML = '';
+  c.ambitos.forEach((a, i) => {
+    const block = document.createElement('div');
+    block.className = 'ambito-block';
+    block.innerHTML = `
+      <div class="row">
+        <input type="text" value="${escapeAttr(a.nombre)}" onchange="saveConfigFromDOM()" style="flex:1">
+        <button class="danger" onclick="eliminarAmbito(${i})">Eliminar ámbito</button>
+      </div>
+      <label>Indicadores (uno por línea)</label>
+      <textarea onchange="saveConfigFromDOM()" rows="4">${escapeHtml(a.items.join('\n'))}</textarea>
+    `;
+    cont.appendChild(block);
+  });
+}
+
+function saveConfigFromDOM(){
+  const c = activeCase();
+  const blocks = [...document.querySelectorAll('#ambitos-config .ambito-block')];
+  c.ambitos = blocks.map((b, i) => ({
+    id: c.ambitos[i] ? c.ambitos[i].id : genId(),
+    nombre: b.querySelector('input[type=text]').value.trim() || 'Ámbito',
+    items: b.querySelector('textarea').value.split('\n').map(s => s.trim()).filter(Boolean)
+  }));
+  saveState();
+}
+
+function anadirAmbito(){
+  saveConfigFromDOM();
+  const c = activeCase();
+  c.ambitos.push({ id: genId(), nombre: 'Nuevo ámbito', items: ['Nuevo indicador'] });
+  saveState();
+  renderConfig();
+}
+
+function eliminarAmbito(idx){
+  saveConfigFromDOM();
+  if(!confirm('¿Eliminar este ámbito de la configuración?')) return;
+  const c = activeCase();
+  c.ambitos.splice(idx, 1);
+  saveState();
+  renderConfig();
+}
+
+function onObjetivoChange(v){
+  const c = activeCase();
+  c.objetivo = Math.max(0, Math.min(100, parseInt(v) || 60));
+  saveState();
+}
+
+/* ---------- formulario de la semana ---------- */
+
+function newWeekFromConfig(){
+  const c = activeCase();
+  const maxNum = c.weeks.length ? Math.max(...c.weeks.map(w => w.numero)) : 0;
+  return {
+    numero: maxNum + 1,
+    fecha: todayISO(),
+    ambitos: c.ambitos.map(a => ({
+      id: a.id,
+      nombre: a.nombre,
+      items: a.items.map(t => ({ texto: t, cumplido: false })),
+      observacion: ''
+    })),
+    obsGeneral: ''
+  };
+}
+
+function renderWeekForm(week){
+  document.getElementById('semana-numero').value = week.numero;
+  document.getElementById('semana-fecha').value = week.fecha;
+  document.getElementById('obs-general').value = week.obsGeneral || '';
+  const cont = document.getElementById('ambitos-registro');
+  cont.innerHTML = '';
+  week.ambitos.forEach(amb => {
+    const block = document.createElement('div');
+    block.className = 'ambito-block';
+    block.dataset.id = amb.id;
+    block.dataset.nombre = amb.nombre;
+    let html = `<h3>${escapeHtml(amb.nombre)}</h3>`;
+    amb.items.forEach(it => {
+      html += `<label class="item-row"><input type="checkbox" ${it.cumplido ? 'checked' : ''} data-texto="${escapeAttr(it.texto)}"><span>${escapeHtml(it.texto)}</span></label>`;
+    });
+    html += `<label>Observación de este ámbito (opcional)</label><textarea>${escapeHtml(amb.observacion || '')}</textarea>`;
+    block.innerHTML = html;
+    cont.appendChild(block);
+  });
+}
+
+function readWeekFormToObject(){
+  const numero = parseInt(document.getElementById('semana-numero').value) || 1;
+  const fecha = document.getElementById('semana-fecha').value || todayISO();
+  const obsGeneral = document.getElementById('obs-general').value;
+  const ambitos = [...document.querySelectorAll('#ambitos-registro .ambito-block')].map(block => {
+    const items = [...block.querySelectorAll('.item-row input[type=checkbox]')].map(chk => ({
+      texto: chk.dataset.texto,
+      cumplido: chk.checked
+    }));
+    const observacion = block.querySelector('textarea').value;
+    return { id: block.dataset.id, nombre: block.dataset.nombre, items, observacion };
+  });
+  return { numero, fecha, ambitos, obsGeneral };
+}
+
+function nuevaSemana(){
+  renderWeekForm(newWeekFromConfig());
+  document.getElementById('resumen-section').style.display = 'none';
+}
+
+/* ---------- generación del resumen ---------- */
+
+function generarResumen(){
+  const week = readWeekFormToObject();
+  if(!week.ambitos.length || week.ambitos.every(a => a.items.length === 0)){
+    alert('Configura al menos un ámbito con indicadores antes de generar el resumen.');
+    return;
+  }
+  const c = activeCase();
+  const idx = c.weeks.findIndex(w => w.numero === week.numero);
+  if(idx >= 0) c.weeks[idx] = week; else c.weeks.push(week);
+  c.weeks.sort((a, b) => a.numero - b.numero);
+  saveState();
+  renderHistorico();
+  mostrarResumen(week);
+}
+
+function mostrarResumen(week){
+  const c = activeCase();
+  const objetivo = c.objetivo;
+  const prevWeek = c.weeks.find(w => w.numero === week.numero - 1);
+  document.getElementById('resumen-section').style.display = 'block';
+  drawBarChart(document.getElementById('chart-ambitos'), week, objetivo);
+  drawLineChart(document.getElementById('chart-evolucion'), c.weeks, objetivo);
+  document.getElementById('mensaje').value = generarMensaje(c, week, prevWeek);
+  document.getElementById('resumen-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+/* ---------- gráficos (canvas) ---------- */
+
+function drawBarChart(canvas, week, objetivo){
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const datos = week.ambitos.filter(a => a.items.length).map(a => ({ label: a.nombre, pct: pctAmbito(a), esGlobal: false }));
+  datos.unshift({ label: 'GLOBAL', pct: pctGlobal(week), esGlobal: true });
+
+  const padding = { top: 36, right: 16, bottom: 70, left: 40 };
+  const chartW = W - padding.left - padding.right;
+  const chartH = H - padding.top - padding.bottom;
+
+  ctx.fillStyle = '#222';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Cumplimiento por ámbitos · Semana ' + week.numero + ' (' + week.fecha + ')', padding.left, 20);
+
+  ctx.font = '11px sans-serif';
+  for(let v = 0; v <= 100; v += 25){
+    const y = padding.top + chartH - (v / 100) * chartH;
+    ctx.strokeStyle = '#eee';
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(padding.left + chartW, y);
+    ctx.stroke();
+    ctx.fillStyle = '#999';
+    ctx.textAlign = 'right';
+    ctx.fillText(v + '%', padding.left - 6, y + 4);
+  }
+
+  const yObj = padding.top + chartH - (objetivo / 100) * chartH;
+  ctx.strokeStyle = '#1c4587';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(padding.left, yObj);
+  ctx.lineTo(padding.left + chartW, yObj);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#1c4587';
+  ctx.textAlign = 'right';
+  ctx.fillText('Objetivo ' + objetivo + '%', padding.left + chartW - 4, yObj - 4);
+
+  const n = datos.length;
+  const gap = chartW / n;
+  const barW = Math.min(60, gap * 0.6);
+  datos.forEach((d, i) => {
+    const x = padding.left + gap * i + (gap - barW) / 2;
+    const h = (d.pct / 100) * chartH;
+    const y = padding.top + chartH - h;
+    ctx.fillStyle = d.esGlobal ? '#1c4587' : colorNivel(d.pct, objetivo);
+    ctx.fillRect(x, y, barW, h);
+    ctx.fillStyle = '#222';
+    ctx.textAlign = 'center';
+    ctx.font = '12px sans-serif';
+    ctx.fillText(Math.round(d.pct) + '%', x + barW / 2, y - 6);
+
+    ctx.save();
+    ctx.translate(x + barW / 2, padding.top + chartH + 10);
+    ctx.rotate(-Math.PI / 6);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#333';
+    ctx.font = '11px sans-serif';
+    ctx.fillText(truncate(d.label, 18), 0, 0);
+    ctx.restore();
+  });
+}
+
+function drawLineChart(canvas, weeks, objetivo){
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const padding = { top: 36, right: 16, bottom: 36, left: 40 };
+  const chartW = W - padding.left - padding.right;
+  const chartH = H - padding.top - padding.bottom;
+
+  ctx.fillStyle = '#222';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Evolución del cumplimiento global', padding.left, 20);
+
+  ctx.font = '11px sans-serif';
+  for(let v = 0; v <= 100; v += 25){
+    const y = padding.top + chartH - (v / 100) * chartH;
+    ctx.strokeStyle = '#eee';
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(padding.left + chartW, y);
+    ctx.stroke();
+    ctx.fillStyle = '#999';
+    ctx.textAlign = 'right';
+    ctx.fillText(v + '%', padding.left - 6, y + 4);
+  }
+
+  const yObj = padding.top + chartH - (objetivo / 100) * chartH;
+  ctx.strokeStyle = '#1c4587';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(padding.left, yObj);
+  ctx.lineTo(padding.left + chartW, yObj);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  if(!weeks.length) return;
+  const n = weeks.length;
+  const inset = 24;
+  const usableW = Math.max(chartW - inset * 2, 0);
+  const stepX = n > 1 ? usableW / (n - 1) : 0;
+
+  ctx.strokeStyle = '#1c4587';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  weeks.forEach((w, i) => {
+    const pct = pctGlobal(w);
+    const x = padding.left + inset + (n > 1 ? stepX * i : usableW / 2);
+    const y = padding.top + chartH - (pct / 100) * chartH;
+    if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  ctx.lineWidth = 1;
+
+  weeks.forEach((w, i) => {
+    const pct = pctGlobal(w);
+    const x = padding.left + inset + (n > 1 ? stepX * i : usableW / 2);
+    const y = padding.top + chartH - (pct / 100) * chartH;
+    ctx.fillStyle = colorNivel(pct, objetivo);
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.fillStyle = '#333';
+    ctx.textAlign = 'center';
+    ctx.font = '10px sans-serif';
+    ctx.fillText('S' + w.numero, x, padding.top + chartH + 16);
+    ctx.fillText(Math.round(pct) + '%', x, y - 8);
+  });
+}
+
+/* ---------- mensaje para la familia ---------- */
+
+function tendenciaTexto(pct, prevPct){
+  if(prevPct == null) return '';
+  const diff = Math.round(pct - prevPct);
+  if(diff > 0) return ` (↑ +${diff} pp)`;
+  if(diff < 0) return ` (↓ ${diff} pp)`;
+  return ' (= sin cambios)';
+}
+
+function propuestaAmbito(nombre, pct, objetivo){
+  if(pct >= objetivo){
+    return `${nombre}: cumplimiento aceptable (${Math.round(pct)}%) pero todavía irregular. Propuesta: fijar 1-2 objetivos muy concretos en este ámbito para la próxima semana y revisarlos a diario.`;
+  }
+  return `${nombre}: ha costado más esta semana (${Math.round(pct)}%). Propuesta: reducir la exigencia a lo mínimo imprescindible y acompañar de cerca el inicio y el cierre de las tareas de este ámbito.`;
+}
+
+function generarMensaje(c, week, prevWeek){
+  const objetivo = c.objetivo;
+  const globalPct = pctGlobal(week);
+  const prevGlobal = prevWeek ? pctGlobal(prevWeek) : null;
+  const lines = [];
+
+  lines.push(`RESUMEN SEMANAL — Semana ${week.numero} (${week.fecha})`);
+  lines.push('');
+  lines.push(`Cumplimiento global: ${Math.round(globalPct)}%${tendenciaTexto(globalPct, prevGlobal)}`);
+  lines.push(`Objetivo: ${objetivo}% — ${globalPct >= objetivo ? 'ALCANZADO' : 'NO ALCANZADO'}`);
+  lines.push(`Valoración general: ${nivel(globalPct, objetivo)}`);
+  lines.push('');
+  lines.push('POR ÁMBITOS');
+
+  const propuestas = [];
+  week.ambitos.filter(a => a.items.length).forEach(a => {
+    const pct = pctAmbito(a);
+    const prevA = prevWeek ? prevWeek.ambitos.find(x => x.id === a.id || x.nombre === a.nombre) : null;
+    const prevPct = prevA ? pctAmbito(prevA) : null;
+    lines.push(`- ${a.nombre}: ${Math.round(pct)}%${tendenciaTexto(pct, prevPct)} — ${nivel(pct, objetivo)}`);
+    if(a.observacion && a.observacion.trim()) lines.push(`  Observación: ${a.observacion.trim()}`);
+    if(pct < 80) propuestas.push(propuestaAmbito(a.nombre, pct, objetivo));
+  });
+
+  lines.push('');
+  lines.push('PROPUESTAS PARA LA PRÓXIMA SEMANA');
+  if(propuestas.length){
+    propuestas.forEach(p => lines.push('- ' + p));
+  } else {
+    lines.push('- Todos los ámbitos están en buen nivel: mantener las rutinas actuales y seguir reforzando los logros.');
+  }
+
+  if(week.obsGeneral && week.obsGeneral.trim()){
+    lines.push('');
+    lines.push('OBSERVACIONES');
+    lines.push(week.obsGeneral.trim());
+  }
+
+  lines.push('');
+  lines.push('Un saludo,');
+
+  return lines.join('\n');
+}
+
+function copiarMensaje(){
+  const ta = document.getElementById('mensaje');
+  ta.focus();
+  ta.select();
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(ta.value);
+  } else {
+    document.execCommand('copy');
+  }
+  alert('Mensaje copiado al portapapeles.');
+}
+
+function descargarImagen(canvasId, filename){
+  const canvas = document.getElementById(canvasId);
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+/* ---------- histórico ---------- */
+
+function renderHistorico(){
+  const c = activeCase();
+  const cont = document.getElementById('historico-table');
+  if(!c.weeks.length){
+    cont.innerHTML = '<p class="muted">Todavía no hay semanas registradas.</p>';
+    return;
+  }
+  let html = '<table><thead><tr><th>Semana</th><th>Fecha</th><th>% global</th><th>Valoración</th><th></th></tr></thead><tbody>';
+  c.weeks.forEach(w => {
+    const pct = pctGlobal(w);
+    const niv = nivel(pct, c.objetivo);
+    html += `<tr>
+      <td>S${w.numero}</td>
+      <td>${w.fecha}</td>
+      <td>${Math.round(pct)}%</td>
+      <td><span class="badge ${niv.toLowerCase()}">${niv}</span></td>
+      <td class="actions">
+        <button class="secondary" onclick="cargarSemana(${w.numero})">Editar / ver</button>
+        <button class="danger" onclick="eliminarSemana(${w.numero})">Eliminar</button>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  cont.innerHTML = html;
+}
+
+function cargarSemana(numero){
+  const c = activeCase();
+  const w = c.weeks.find(x => x.numero === numero);
+  renderWeekForm(JSON.parse(JSON.stringify(w)));
+  mostrarResumen(w);
+  document.getElementById('semana-numero').scrollIntoView({ behavior: 'smooth' });
+}
+
+function eliminarSemana(numero){
+  if(!confirm('¿Eliminar el registro de la semana ' + numero + '?')) return;
+  const c = activeCase();
+  c.weeks = c.weeks.filter(w => w.numero !== numero);
+  saveState();
+  renderHistorico();
+  document.getElementById('resumen-section').style.display = 'none';
+}
+
+/* ---------- exportar / importar ---------- */
+
+function exportarCSV(){
+  const c = activeCase();
+  if(!c.weeks.length){
+    alert('No hay semanas registradas.');
+    return;
+  }
+  const ambitosNombres = [...new Set(c.weeks.flatMap(w => w.ambitos.filter(a => a.items.length).map(a => a.nombre)))];
+  let csv = 'Semana,Fecha,% Global,Valoracion,' + ambitosNombres.map(n => '"' + n.replace(/"/g, '""') + ' %"').join(',') + '\n';
+  c.weeks.forEach(w => {
+    const row = [w.numero, w.fecha, Math.round(pctGlobal(w)), nivel(pctGlobal(w), c.objetivo)];
+    ambitosNombres.forEach(n => {
+      const a = w.ambitos.find(x => x.nombre === n);
+      row.push(a && a.items.length ? Math.round(pctAmbito(a)) : '');
+    });
+    csv += row.join(',') + '\n';
+  });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `historico-${c.name.replace(/\s+/g, '_')}.csv`;
+  link.click();
+}
+
+function exportarJSON(){
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'seguimiento-semanal-backup.json';
+  link.click();
+}
+
+function importarJSON(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if(!data.cases || !data.activeCaseId) throw new Error('Formato no válido');
+      if(!confirm('Esto sustituirá los datos actuales por los del archivo importado. ¿Continuar?')) return;
+      state = data;
+      saveState();
+      renderAll();
+    }catch(e){
+      alert('No se pudo importar el archivo: ' + e.message);
+    }
+  };
+  reader.readAsText(file);
+  ev.target.value = '';
+}
+
+/* ---------- render general ---------- */
+
+function renderAll(){
+  renderCaseSelector();
+  renderConfig();
+  renderWeekForm(newWeekFromConfig());
+  renderHistorico();
+  document.getElementById('resumen-section').style.display = 'none';
+}
+
+renderAll();
+</script>
+</body>
+</html>
