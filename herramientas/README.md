@@ -39,17 +39,9 @@ repetir la misma pauta todas las semanas). Si un ámbito alcanza por primera
 vez el nivel "Alta", se felicita y se propone mantener.
 
 **Si esa semana no puedes registrar tú el seguimiento** (ej. el/la tutor/a lo
-hace por ti), hay dos opciones en la sección "Compartir el registro de esta
-semana con otra persona":
-- **Ficha en blanco para imprimir** ("Imprimir ficha en blanco (papel)"):
-  genera una hoja con los indicadores de cada ámbito en formato checklist
-  para rellenar a mano; luego transcribes los resultados tú.
-- **Registro digital**: exportas una "plantilla de la semana" (archivo
-  pequeño), la otra persona la importa en su propio dispositivo (misma
-  herramienta), marca los indicadores y te devuelve un archivo de "semana
-  rellenada" que importas con un clic — queda incorporada a tu histórico y
-  se genera el resumen y el mensaje para la familia. Los pasos numerados
-  (1 a 4) guían a cada persona.
+hace por ti), el botón **"Imprimir ficha en blanco (papel)"** genera una hoja
+con los indicadores de cada ámbito en formato checklist para que esa persona
+la rellene a mano; luego transcribes tú los resultados a la herramienta.
 
 **Datos e historial:**
 - Todo se guarda en el navegador (localStorage), no se sube a ningún sitio.
