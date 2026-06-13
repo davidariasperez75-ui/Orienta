@@ -38,6 +38,19 @@ cambios relevantes, se añade un aviso de revisión cada 3 semanas (en vez de
 repetir la misma pauta todas las semanas). Si un ámbito alcanza por primera
 vez el nivel "Alta", se felicita y se propone mantener.
 
+**Si esa semana no puedes registrar tú el seguimiento** (ej. el/la tutor/a lo
+hace por ti), hay dos opciones en la sección "Compartir el registro de esta
+semana con otra persona":
+- **Ficha en blanco para imprimir** ("Imprimir ficha en blanco (papel)"):
+  genera una hoja con los indicadores de cada ámbito en formato checklist
+  para rellenar a mano; luego transcribes los resultados tú.
+- **Registro digital**: exportas una "plantilla de la semana" (archivo
+  pequeño), la otra persona la importa en su propio dispositivo (misma
+  herramienta), marca los indicadores y te devuelve un archivo de "semana
+  rellenada" que importas con un clic — queda incorporada a tu histórico y
+  se genera el resumen y el mensaje para la familia. Los pasos numerados
+  (1 a 4) guían a cada persona.
+
 **Datos e historial:**
 - Todo se guarda en el navegador (localStorage), no se sube a ningún sitio.
 - Puedes llevar varios "casos" a la vez (usa un alias, no el nombre real).
@@ -48,6 +61,7 @@ vez el nivel "Alta", se felicita y se propone mantener.
   [`informe de fin de curso`](../plantillas/plantilla-informe-fin-curso.md).
 
 **Privacidad:** el archivo HTML no contiene datos de ningún alumno/a; los
-datos que introduzcas quedan solo en tu navegador. Aun así, usa siempre
-alias en el nombre del caso si vas a compartir el archivo o capturas de
-pantalla.
+datos que introduzcas quedan solo en tu navegador (o en el archivo que
+descargues/compartas). Aun así, usa siempre alias en el nombre del caso si
+vas a compartir el archivo, capturas de pantalla o los archivos de
+plantilla/registro de semana.

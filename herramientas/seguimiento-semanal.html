@@ -52,6 +52,17 @@ details summary{cursor:pointer;font-weight:600;color:var(--azul);}
 @media (max-width:480px){
   .row{flex-direction:column;align-items:stretch;}
 }
+#ficha-imprimir{display:none;}
+.ficha-item{margin:4px 0;font-size:.95rem;}
+.ficha-check{display:inline-block;width:14px;height:14px;border:1px solid #333;margin-right:8px;vertical-align:middle;}
+.ficha-obs{margin:4px 0 12px 22px;font-size:.85rem;color:#555;}
+.ficha-lineas{line-height:2.2;font-size:.9rem;color:#555;}
+@media print{
+  header, main{display:none !important;}
+  #ficha-imprimir{display:block !important;padding:20px;font-family:sans-serif;color:#000;background:#fff;}
+  #ficha-imprimir h2{margin-top:0;}
+  #ficha-imprimir h3{margin:14px 0 4px;font-size:1rem;}
+}
 </style>
 </head>
 <body>
@@ -109,8 +120,35 @@ details summary{cursor:pointer;font-weight:600;color:var(--azul);}
     <div class="actions" style="margin-top:12px">
       <button onclick="generarResumen()">Generar resumen semanal</button>
       <button class="secondary" onclick="nuevaSemana()">Nueva semana en blanco</button>
+      <button class="secondary" onclick="imprimirFicha()">Imprimir ficha en blanco (papel)</button>
     </div>
   </div>
+
+  <details class="card">
+    <summary>Compartir el registro de esta semana con otra persona (ej. tutor/a)</summary>
+    <p class="muted" style="margin-top:8px">Si una semana no puedes registrar tú el seguimiento, otra persona
+    (ej. el/la tutor/a) puede hacerlo desde su propio dispositivo, y tú incorporas después su registro a tu
+    histórico. Requiere enviarse dos archivos pequeños (sin datos identificativos si usas un alias).</p>
+    <ol class="muted" style="padding-left:20px">
+      <li><strong>Tú:</strong> pulsa "1. Exportar plantilla de esta semana" y envía el archivo descargado
+      (email, WhatsApp, Drive) a esa persona.</li>
+      <li><strong>Ella:</strong> abre esta misma herramienta en su dispositivo, pulsa "2. Importar plantilla
+      para registrar" y elige el archivo recibido. Marca los indicadores de la semana y pulsa
+      "3. Exportar semana rellenada". Te envía ese archivo de vuelta.</li>
+      <li><strong>Tú:</strong> pulsa "4. Importar semana registrada" y elige el archivo que te ha enviado:
+      se incorpora a tu histórico y se genera el resumen y el mensaje para la familia.</li>
+    </ol>
+    <div class="actions">
+      <button class="secondary" onclick="exportarPlantillaSemana()">1. Exportar plantilla de esta semana</button>
+      <button class="secondary" onclick="document.getElementById('import-plantilla').click()">2. Importar plantilla para registrar</button>
+      <input type="file" id="import-plantilla" accept="application/json" style="display:none" onchange="importarPlantillaSemana(event)">
+    </div>
+    <div class="actions" style="margin-top:8px">
+      <button class="secondary" onclick="exportarSemanaRellenada()">3. Exportar semana rellenada</button>
+      <button class="secondary" onclick="document.getElementById('import-semana').click()">4. Importar semana registrada</button>
+      <input type="file" id="import-semana" accept="application/json" style="display:none" onchange="importarSemanaRegistrada(event)">
+    </div>
+  </details>
 
   <div class="card" id="resumen-section" style="display:none">
     <h2>Resumen visual</h2>
@@ -143,6 +181,20 @@ details summary{cursor:pointer;font-weight:600;color:var(--azul);}
   </div>
 
 </main>
+
+<div id="ficha-imprimir">
+  <h2>Ficha de seguimiento semanal</h2>
+  <p><strong>Caso:</strong> <span id="ficha-caso"></span><br>
+  <strong>Semana nº:</strong> <span id="ficha-semana"></span> &nbsp;
+  <strong>Fecha:</strong> <span id="ficha-fecha"></span></p>
+  <div id="ficha-ambitos"></div>
+  <p><strong>Observaciones generales de la semana:</strong></p>
+  <p class="ficha-lineas">
+    ____________________________________________________________<br>
+    ____________________________________________________________<br>
+    ____________________________________________________________
+  </p>
+</div>
 
 <script>
 const STORAGE_KEY = 'orienta-seguimiento-semanal-v1';
@@ -950,15 +1002,23 @@ function exportarCSV(){
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = `historico-${c.name.replace(/\s+/g, '_')}.csv`;
+  document.body.appendChild(link);
   link.click();
+  link.remove();
+}
+
+function descargarJSON(data, filename){
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 function exportarJSON(){
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = 'seguimiento-semanal-backup.json';
-  link.click();
+  descargarJSON(state, 'seguimiento-semanal-backup.json');
 }
 
 function importarJSON(ev){
@@ -979,6 +1039,121 @@ function importarJSON(ev){
   };
   reader.readAsText(file);
   ev.target.value = '';
+}
+
+/* ---------- compartir el registro de una semana con otra persona ---------- */
+
+function exportarPlantillaSemana(){
+  const c = activeCase();
+  const form = readWeekFormToObject();
+  const week = {
+    numero: form.numero,
+    fecha: form.fecha,
+    ambitos: form.ambitos.map(a => ({
+      id: a.id,
+      nombre: a.nombre,
+      items: a.items.map(it => ({ texto: it.texto, cumplido: false })),
+      observacion: ''
+    })),
+    obsGeneral: ''
+  };
+  descargarJSON({
+    tipo: 'orienta-plantilla-semana',
+    version: 1,
+    caseName: c.name,
+    objetivo: c.objetivo,
+    umbralCambio: c.umbralCambio || 10,
+    week
+  }, `plantilla-semana-${week.numero}.json`);
+}
+
+function importarPlantillaSemana(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if(data.tipo !== 'orienta-plantilla-semana' || !data.week) throw new Error('Archivo no reconocido');
+      const id = genId();
+      state.cases[id] = {
+        name: (data.caseName || 'Caso') + ' (registro)',
+        objetivo: data.objetivo || 60,
+        umbralCambio: data.umbralCambio || 10,
+        ambitos: data.week.ambitos.map(a => ({ id: a.id, nombre: a.nombre, items: a.items.map(it => it.texto) })),
+        weeks: []
+      };
+      state.activeCaseId = id;
+      saveState();
+      renderAll();
+      renderWeekForm(data.week);
+      document.getElementById('resumen-section').style.display = 'none';
+      alert(`Plantilla cargada para la semana ${data.week.numero}. Marca los indicadores y, cuando termines, pulsa "3. Exportar semana rellenada" para devolver el archivo.`);
+    }catch(e){
+      alert('No se pudo importar el archivo: ' + e.message);
+    }
+  };
+  reader.readAsText(file);
+  ev.target.value = '';
+}
+
+function exportarSemanaRellenada(){
+  const c = activeCase();
+  const week = readWeekFormToObject();
+  descargarJSON({
+    tipo: 'orienta-semana-registrada',
+    version: 1,
+    caseName: c.name,
+    week
+  }, `semana-${week.numero}-registrada.json`);
+  alert('Archivo descargado. Envíaselo a la persona orientadora para que lo incorpore a su registro.');
+}
+
+function importarSemanaRegistrada(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if(data.tipo !== 'orienta-semana-registrada' || !data.week) throw new Error('Archivo no reconocido');
+      const c = activeCase();
+      if(!confirm(`Vas a incorporar la semana ${data.week.numero} (${data.week.fecha}) al caso "${c.name}". ¿Continuar?`)) return;
+      const idx = c.weeks.findIndex(w => w.numero === data.week.numero);
+      if(idx >= 0) c.weeks[idx] = data.week; else c.weeks.push(data.week);
+      c.weeks.sort((a, b) => a.numero - b.numero);
+      saveState();
+      renderHistorico();
+      mostrarResumen(data.week);
+    }catch(e){
+      alert('No se pudo importar el archivo: ' + e.message);
+    }
+  };
+  reader.readAsText(file);
+  ev.target.value = '';
+}
+
+/* ---------- ficha imprimible ---------- */
+
+function imprimirFicha(){
+  const c = activeCase();
+  document.getElementById('ficha-caso').textContent = c.name;
+  document.getElementById('ficha-semana').textContent = document.getElementById('semana-numero').value || '';
+  document.getElementById('ficha-fecha').textContent = document.getElementById('semana-fecha').value || '';
+  const cont = document.getElementById('ficha-ambitos');
+  cont.innerHTML = '';
+  c.ambitos.forEach(a => {
+    if(!a.items.length) return;
+    const block = document.createElement('div');
+    let html = `<h3>${escapeHtml(a.nombre)}</h3>`;
+    a.items.forEach(texto => {
+      html += `<div class="ficha-item"><span class="ficha-check"></span>${escapeHtml(texto)}</div>`;
+    });
+    html += `<p class="ficha-obs">Observación: ________________________________________</p>`;
+    block.innerHTML = html;
+    cont.appendChild(block);
+  });
+  window.print();
 }
 
 /* ---------- render general ---------- */
