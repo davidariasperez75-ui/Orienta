@@ -13,17 +13,27 @@ enviar a la familia.
 1. Abre el archivo en el navegador (doble clic, o súbelo a Google Drive y
    ábrelo con "Abrir con > Navegador").
 2. En **Configuración**, define los ámbitos del caso y sus indicadores
-   (uno por línea), y el objetivo mínimo de cumplimiento (60% por defecto).
+   (uno por línea), el objetivo mínimo de cumplimiento (60% por defecto) y
+   el "cambio mínimo para repetir una pauta" (10 puntos por defecto).
    Ya viene con un ejemplo genérico de ámbitos para empezar.
 3. Cada semana, marca los indicadores cumplidos y pulsa **"Generar resumen
    semanal"**. Obtienes al instante:
    - Un gráfico de cumplimiento por ámbitos (con el objetivo marcado).
    - Un gráfico de evolución del cumplimiento global semana a semana.
    - Un mensaje para la familia con los datos, la tendencia respecto a la
-     semana anterior y propuestas de mejora para los ámbitos por debajo
-     del objetivo.
+     semana anterior y propuestas de mejora.
 4. Descarga los gráficos como imagen o copia el mensaje para enviarlos por
    email/WhatsApp.
+
+**Criterio de las propuestas (para no repetir lo mismo cada semana):**
+para cada ámbito, el mensaje solo incluye una propuesta nueva si cambia de
+nivel (Alta/Media/Baja) respecto a la semana anterior o si el cumplimiento
+varía al menos el "cambio mínimo" configurado (10 puntos por defecto). Por
+ejemplo, pasar de 60% a 62% no genera una propuesta nueva si se sigue en
+"Media". Si un ámbito se queda "estancado" por debajo del objetivo sin
+cambios relevantes, se añade un aviso de revisión cada 3 semanas (en vez de
+repetir la misma pauta todas las semanas). Si un ámbito alcanza por primera
+vez el nivel "Alta", se felicita y se propone mantener.
 
 **Datos e historial:**
 - Todo se guarda en el navegador (localStorage), no se sube a ningún sitio.

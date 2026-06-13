@@ -83,7 +83,12 @@ details summary{cursor:pointer;font-weight:600;color:var(--azul);}
     <div class="row" style="margin-top:12px">
       <label for="objetivo">Objetivo mínimo de cumplimiento (%)</label>
       <input type="number" id="objetivo" min="0" max="100" style="max-width:100px" onchange="onObjetivoChange(this.value)">
+      <label for="umbral-cambio">Cambio mínimo para repetir una pauta (puntos %)</label>
+      <input type="number" id="umbral-cambio" min="1" max="100" style="max-width:100px" onchange="onUmbralCambioChange(this.value)">
     </div>
+    <p class="muted" style="margin-top:4px">El mensaje a la familia solo repite una propuesta para un ámbito si
+    cambia de nivel (Alta/Media/Baja) o si el cumplimiento varía al menos estos puntos respecto a la semana
+    anterior. Si un ámbito lleva varias semanas estancado por debajo del objetivo, se avisa cada 3 semanas.</p>
     <div id="ambitos-config"></div>
     <button class="secondary" onclick="anadirAmbito()">+ Añadir ámbito</button>
     <p class="muted" style="margin-top:8px">Cada ámbito tiene una lista de indicadores observables (uno por línea).
@@ -189,7 +194,7 @@ function defaultState(){
   return {
     activeCaseId: id,
     cases: {
-      [id]: { name: 'Caso ejemplo', objetivo: 60, ambitos: defaultAmbitos(), weeks: [] }
+      [id]: { name: 'Caso ejemplo', objetivo: 60, umbralCambio: 10, ambitos: defaultAmbitos(), weeks: [] }
     }
   };
 }
@@ -197,7 +202,13 @@ function defaultState(){
 function loadState(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw) return JSON.parse(raw);
+    if(raw){
+      const data = JSON.parse(raw);
+      Object.values(data.cases || {}).forEach(c => {
+        if(c.umbralCambio == null) c.umbralCambio = 10;
+      });
+      return data;
+    }
   }catch(e){}
   return defaultState();
 }
@@ -263,7 +274,7 @@ function nuevoCaso(){
   const nombre = prompt('Nombre o alias del nuevo caso (no hace falta el nombre real, ej. "Alumno 3ºB - 1")', 'Nuevo caso');
   if(!nombre) return;
   const id = genId();
-  state.cases[id] = { name: nombre, objetivo: 60, ambitos: defaultAmbitos(), weeks: [] };
+  state.cases[id] = { name: nombre, objetivo: 60, umbralCambio: 10, ambitos: defaultAmbitos(), weeks: [] };
   state.activeCaseId = id;
   saveState();
   renderAll();
@@ -295,6 +306,7 @@ function eliminarCaso(){
 function renderConfig(){
   const c = activeCase();
   document.getElementById('objetivo').value = c.objetivo;
+  document.getElementById('umbral-cambio').value = c.umbralCambio || 10;
   const cont = document.getElementById('ambitos-config');
   cont.innerHTML = '';
   c.ambitos.forEach((a, i) => {
@@ -343,6 +355,12 @@ function eliminarAmbito(idx){
 function onObjetivoChange(v){
   const c = activeCase();
   c.objetivo = Math.max(0, Math.min(100, parseInt(v) || 60));
+  saveState();
+}
+
+function onUmbralCambioChange(v){
+  const c = activeCase();
+  c.umbralCambio = Math.max(1, Math.min(100, parseInt(v) || 10));
   saveState();
 }
 
@@ -582,15 +600,61 @@ function tendenciaTexto(pct, prevPct){
   return ' (= sin cambios)';
 }
 
-function propuestaAmbito(nombre, pct, objetivo){
-  if(pct >= objetivo){
-    return `${nombre}: cumplimiento aceptable (${Math.round(pct)}%) pero todavía irregular. Propuesta: fijar 1-2 objetivos muy concretos en este ámbito para la próxima semana y revisarlos a diario.`;
+function cambioRelevante(pct, prevPct, objetivo, umbral){
+  if(prevPct == null) return true;
+  if(nivel(pct, objetivo) !== nivel(prevPct, objetivo)) return true;
+  return Math.abs(pct - prevPct) >= umbral;
+}
+
+function semanasEnNivelActual(c, week, ambitoId, objetivo){
+  const ordenadas = c.weeks.filter(w => w.numero <= week.numero).sort((a, b) => a.numero - b.numero);
+  let nivelRef = null;
+  let count = 0;
+  for(let i = ordenadas.length - 1; i >= 0; i--){
+    const a = ordenadas[i].ambitos.find(x => x.id === ambitoId);
+    if(!a || !a.items.length) break;
+    const niv = nivel(pctAmbito(a), objetivo);
+    if(nivelRef == null) nivelRef = niv;
+    if(niv !== nivelRef) break;
+    count++;
   }
-  return `${nombre}: ha costado más esta semana (${Math.round(pct)}%). Propuesta: reducir la exigencia a lo mínimo imprescindible y acompañar de cerca el inicio y el cierre de las tareas de este ámbito.`;
+  return count;
+}
+
+function propuestaAmbito(nombre, pct, prevPct, objetivo){
+  if(prevPct == null){
+    if(pct >= objetivo){
+      return `${nombre}: cumplimiento aceptable de partida (${Math.round(pct)}%) pero todavía irregular. Propuesta: fijar 1-2 objetivos muy concretos en este ámbito para la próxima semana y revisarlos a diario.`;
+    }
+    return `${nombre}: nivel de partida bajo (${Math.round(pct)}%). Propuesta: empezar con 1-2 indicadores muy concretos y alcanzables, y revisar el avance a diario.`;
+  }
+  const diff = pct - prevPct;
+  if(diff <= -1){
+    return `${nombre}: ha bajado el cumplimiento esta semana (${Math.round(pct)}%, antes ${Math.round(prevPct)}%). Propuesta: revisar qué ha cambiado, reducir la exigencia a lo mínimo imprescindible y acompañar de cerca el inicio y el cierre de las tareas de este ámbito.`;
+  }
+  if(diff >= 1){
+    return `${nombre}: ha mejorado esta semana (${Math.round(pct)}%, antes ${Math.round(prevPct)}%) aunque todavía por debajo del nivel deseado. Propuesta: mantener el mismo apoyo y reconocer el avance para consolidarlo.`;
+  }
+  if(pct >= objetivo){
+    return `${nombre}: cumplimiento estable (${Math.round(pct)}%) pero todavía irregular. Propuesta: fijar 1-2 objetivos muy concretos en este ámbito para la próxima semana y revisarlos a diario.`;
+  }
+  return `${nombre}: sigue costando (${Math.round(pct)}%, sin cambios respecto a la semana anterior). Propuesta: reducir la exigencia a lo mínimo imprescindible y acompañar de cerca el inicio y el cierre de las tareas de este ámbito.`;
+}
+
+function logroAmbito(nombre, pct, prevPct){
+  if(prevPct == null){
+    return `${nombre}: muy buen nivel desde el inicio (${Math.round(pct)}%). Propuesta: mantener las rutinas actuales y seguir reforzando el logro.`;
+  }
+  return `${nombre}: ¡buen avance! Se alcanza un nivel alto (${Math.round(pct)}%, antes ${Math.round(prevPct)}%). Propuesta: mantener las rutinas actuales y reconocer el esfuerzo para consolidar el logro.`;
+}
+
+function escalacionAmbito(nombre, pct, objetivo, semanas){
+  return `${nombre}: lleva ${semanas} semanas sin alcanzar el objetivo (${Math.round(pct)}%, objetivo ${objetivo}%) sin cambios relevantes. Propuesta: revisar el plan de apoyo en este ámbito (ajustar indicadores o valorar una reunión de coordinación).`;
 }
 
 function generarMensaje(c, week, prevWeek){
   const objetivo = c.objetivo;
+  const umbral = c.umbralCambio || 10;
   const globalPct = pctGlobal(week);
   const prevGlobal = prevWeek ? pctGlobal(prevWeek) : null;
   const lines = [];
@@ -610,7 +674,19 @@ function generarMensaje(c, week, prevWeek){
     const prevPct = prevA ? pctAmbito(prevA) : null;
     lines.push(`- ${a.nombre}: ${Math.round(pct)}%${tendenciaTexto(pct, prevPct)} — ${nivel(pct, objetivo)}`);
     if(a.observacion && a.observacion.trim()) lines.push(`  Observación: ${a.observacion.trim()}`);
-    if(pct < 80) propuestas.push(propuestaAmbito(a.nombre, pct, objetivo));
+
+    const nivelActual = nivel(pct, objetivo);
+    const nivelPrev = prevPct != null ? nivel(prevPct, objetivo) : null;
+    const relevante = cambioRelevante(pct, prevPct, objetivo, umbral);
+
+    if(nivelActual === 'Alta'){
+      if(relevante && nivelPrev !== 'Alta') propuestas.push(logroAmbito(a.nombre, pct, prevPct));
+    } else if(relevante){
+      propuestas.push(propuestaAmbito(a.nombre, pct, prevPct, objetivo));
+    } else {
+      const semanas = semanasEnNivelActual(c, week, a.id, objetivo);
+      if(semanas >= 3 && semanas % 3 === 0) propuestas.push(escalacionAmbito(a.nombre, pct, objetivo, semanas));
+    }
   });
 
   lines.push('');
@@ -618,7 +694,13 @@ function generarMensaje(c, week, prevWeek){
   if(propuestas.length){
     propuestas.forEach(p => lines.push('- ' + p));
   } else {
-    lines.push('- Todos los ámbitos están en buen nivel: mantener las rutinas actuales y seguir reforzando los logros.');
+    const ambitosConDatos = week.ambitos.filter(a => a.items.length);
+    const todosAlta = ambitosConDatos.length && ambitosConDatos.every(a => nivel(pctAmbito(a), objetivo) === 'Alta');
+    if(todosAlta){
+      lines.push('- Todos los ámbitos están en buen nivel: mantener las rutinas actuales y seguir reforzando los logros.');
+    } else {
+      lines.push('- Sin cambios relevantes respecto a la semana anterior: mantener el plan de seguimiento actual.');
+    }
   }
 
   if(week.obsGeneral && week.obsGeneral.trim()){
