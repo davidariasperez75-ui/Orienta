@@ -19,6 +19,9 @@ enviar a la familia.
 3. Cada semana, marca los indicadores cumplidos y pulsa **"Generar resumen
    semanal"**. Obtienes al instante:
    - Un gráfico de cumplimiento por ámbitos (con el objetivo marcado).
+   - Un gráfico de radar que compara de un vistazo el perfil de ámbitos de
+     esta semana con el de la semana anterior y con el objetivo (requiere
+     al menos 3 ámbitos con indicadores).
    - Un gráfico de evolución del cumplimiento global semana a semana.
    - Un mensaje para la familia con los datos, la tendencia respecto a la
      semana anterior y propuestas de mejora.
